@@ -7,17 +7,33 @@ const fallbackProdBase =
 const isBrowser = typeof window !== "undefined";
 const defaultRelativeBase = "/api";
 
-let API_BASE_URL = envApiBaseUrl || defaultRelativeBase;
+const resolveApiBaseUrl = () => {
+  const isRelative = (value) => value?.startsWith("/");
 
-if (!envApiBaseUrl) {
-  if (import.meta.env.DEV) {
-    API_BASE_URL = defaultRelativeBase;
-  } else if (fallbackProdBase) {
-    API_BASE_URL = fallbackProdBase;
-  } else if (isBrowser) {
-    API_BASE_URL = `${window.location.origin}/api`;
+  if (envApiBaseUrl) {
+    if (import.meta.env.DEV || !isRelative(envApiBaseUrl)) {
+      return envApiBaseUrl;
+    }
+    // In production a relative path would hit Vercel instead of Render, so fall back.
+    return fallbackProdBase;
   }
-}
+
+  if (import.meta.env.DEV) {
+    return defaultRelativeBase;
+  }
+
+  if (fallbackProdBase) {
+    return fallbackProdBase;
+  }
+
+  if (isBrowser) {
+    return `${window.location.origin}/api`;
+  }
+
+  return defaultRelativeBase;
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
