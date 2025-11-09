@@ -194,6 +194,9 @@ const Dashboard = () => {
   const performance = dashboardData?.performance || {};
   const budgetBlock = dashboardData?.budget || {};
   const queueInsights = dashboardData?.queue_insights || {};
+  const statusBreakdown = dashboardData?.requests_by_status || {};
+  const flowSnapshot = dashboardData?.flow_snapshot || [];
+  const canSeeTeamActivity = ["mg", "director"].includes(user?.role);
 
   const formatCurrency = (value = 0) =>
     new Intl.NumberFormat("fr-FR", {
@@ -340,6 +343,55 @@ const Dashboard = () => {
     return base[user?.role] || fallback;
   }, [dashboardData, overview, queueInsights.awaiting, user?.role]);
 
+  const pipelineStatuses = useMemo(() => {
+    const config = [
+      {
+        key: "pending",
+        label: "Étape 1 • Moyens Généraux",
+        color: "bg-blue-100 text-blue-700",
+        bar: "bg-blue-500",
+      },
+      {
+        key: "mg_approved",
+        label: "Étape 2 • Comptabilité",
+        color: "bg-amber-100 text-amber-700",
+        bar: "bg-amber-500",
+      },
+      {
+        key: "accounting_reviewed",
+        label: "Étape 3 • Direction",
+        color: "bg-purple-100 text-purple-700",
+        bar: "bg-purple-500",
+      },
+      {
+        key: "director_approved",
+        label: "Clôturées",
+        color: "bg-emerald-100 text-emerald-700",
+        bar: "bg-emerald-500",
+      },
+      {
+        key: "rejected",
+        label: "Refusées",
+        color: "bg-rose-100 text-rose-700",
+        bar: "bg-rose-500",
+      },
+    ];
+
+    const total = config.reduce(
+      (sum, item) => sum + (statusBreakdown[item.key] || 0),
+      0
+    );
+
+    return config.map((item) => {
+      const value = statusBreakdown[item.key] || 0;
+      return {
+        ...item,
+        value,
+        percent: total ? Math.round((value / total) * 100) : 0,
+      };
+    });
+  }, [statusBreakdown]);
+
   const currentBudget =
     budgetBlock.current_total ??
     dashboardData?.current_period_stats?.total_amount ??
@@ -446,6 +498,40 @@ const Dashboard = () => {
           />
         ))}
       </div>
+
+      <SectionCard
+        title="Vue pipeline"
+        description="Progression globale du flux (derniers 6 mois)"
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {pipelineStatuses.map((stage) => (
+            <div
+              key={stage.key}
+              className="rounded-2xl border border-gray-100 p-4 shadow-sm bg-white/80 space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-gray-900">
+                  {stage.label}
+                </p>
+                <span
+                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${stage.color}`}
+                >
+                  {stage.value} dossiers
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+                <div
+                  style={{ width: `${stage.percent}%` }}
+                  className={`h-full ${stage.bar} transition-all`}
+                ></div>
+              </div>
+              <p className="text-xs text-gray-500">
+                {stage.percent}% du flux positionné à cette étape
+              </p>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <SectionCard
@@ -592,36 +678,111 @@ const Dashboard = () => {
         </SectionCard>
       </div>
 
-      <SectionCard
-        title="Activité des équipes"
-        description="Vue consolidée par rôle"
-        action={
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
-            {Object.keys(teamActivity || {}).length} équipes suivies
-          </span>
-        }
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Object.entries(teamActivity || {}).map(([roleKey, info]) => (
-            <div
-              key={roleKey}
-              className="rounded-2xl border border-gray-100 p-4 bg-white shadow-sm flex flex-col gap-2"
-            >
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-blue-600" />
-                <p className="font-semibold text-gray-900">{info.label}</p>
+      {canSeeTeamActivity && flowSnapshot.length > 0 && (
+        <SectionCard
+          title="Flux multi-équipes"
+          description="5 dernières demandes ayant mobilisé plusieurs rôles"
+        >
+          <div className="space-y-4">
+            {flowSnapshot.map((item) => {
+              const actors = [
+                { label: "MG", data: item.actors?.mg },
+                { label: "Comptabilité", data: item.actors?.accounting },
+                { label: "Direction", data: item.actors?.director },
+              ];
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-gray-100 p-4 shadow-sm bg-white/80"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {item.item_description}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {item.requested_by?.name || "Demandeur inconnu"} ·{" "}
+                        {item.requested_by?.department || "Département N/A"}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Montant ~ {formatCurrency(item.amount || 0)} · En attente
+                        depuis {item.waiting_days} jour
+                        {item.waiting_days > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700">
+                      {item.status_display}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {actors.map((actor) => (
+                      <div
+                        key={actor.label}
+                        className="rounded-xl border border-gray-100 p-3 bg-gray-50"
+                      >
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                          {actor.label}
+                        </p>
+                        {actor.data ? (
+                          <>
+                            <p className="text-sm text-gray-900">
+                              {actor.data.name}
+                            </p>
+                            {actor.data.performed_at && (
+                              <p className="text-[11px] text-gray-400">
+                                {new Date(
+                                  actor.data.performed_at
+                                ).toLocaleDateString("fr-FR")}
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-sm text-gray-400">
+                            En attente de ce rôle
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </SectionCard>
+      )}
+
+      {canSeeTeamActivity && (
+        <SectionCard
+          title="Activité des équipes"
+          description="Vue consolidée par rôle"
+          action={
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+              {Object.keys(teamActivity || {}).length} équipes suivies
+            </span>
+          }
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Object.entries(teamActivity || {}).map(([roleKey, info]) => (
+              <div
+                key={roleKey}
+                className="rounded-2xl border border-gray-100 p-4 bg-white shadow-sm flex flex-col gap-2"
+              >
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  <p className="font-semibold text-gray-900">{info.label}</p>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {info.awaiting} en attente · {info.validated_today} traitées
+                  aujourd'hui
+                </p>
+                <p className="text-xs text-gray-400">
+                  {info.members} membre{info.members > 1 ? "s" : ""} actifs
+                </p>
               </div>
-              <p className="text-sm text-gray-600">
-                {info.awaiting} en attente · {info.validated_today} traitées
-                aujourd'hui
-              </p>
-              <p className="text-xs text-gray-400">
-                {info.members} membre{info.members > 1 ? "s" : ""} actifs
-              </p>
-            </div>
-          ))}
-        </div>
-      </SectionCard>
+            ))}
+          </div>
+        </SectionCard>
+      )}
 
       <SectionCard
         title="Actions rapides"
