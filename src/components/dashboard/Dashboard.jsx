@@ -16,6 +16,7 @@ import {
   Users,
   Activity as ActivityIcon,
   Timer,
+  Building,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -71,7 +72,7 @@ const QueueItem = ({ item }) => {
           </p>
           <p className="text-xs text-gray-500">
             {item.requested_by?.name || "Demandeur inconnu"} ·{" "}
-            {item.requested_by?.department || "Département non renseigné"}
+            {item.requested_by?.department || "Service non renseigné"}
           </p>
           <p className="text-xs text-gray-400">
             En attente depuis {item.waiting_days} jour
@@ -187,6 +188,13 @@ const Dashboard = () => {
     fetchDashboardData();
   }, []);
 
+  const roleLabels = {
+    employee: "Personnel",
+    mg: "Moyens Généraux",
+    accounting: "Comptabilité",
+    director: "Direction",
+  };
+
   const overview = dashboardData?.overview || {};
   const queueItems = dashboardData?.queue || [];
   const recentActions = dashboardData?.recent_actions || [];
@@ -197,6 +205,7 @@ const Dashboard = () => {
   const statusBreakdown = dashboardData?.requests_by_status || {};
   const flowSnapshot = dashboardData?.flow_snapshot || [];
   const canSeeTeamActivity = ["mg", "director"].includes(user?.role);
+  const departmentStats = dashboardData?.department_stats || [];
 
   const formatCurrency = (value = 0) =>
     new Intl.NumberFormat("fr-FR", {
@@ -472,6 +481,17 @@ const Dashboard = () => {
               ? "Pilotage des demandes arrivées à votre niveau."
               : "Suivi complet de votre activité d’achat."}
           </p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs uppercase font-semibold tracking-wide">
+            <span className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 text-gray-700">
+              {roleLabels[user?.role] || "Rôle"} confirmé
+            </span>
+            {user?.department && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-red-50 text-red-600">
+                <Building className="h-3 w-3 mr-1" />
+                {user.department}
+              </span>
+            )}
+          </div>
         </div>
         <div className="text-right">
           <p className="text-xs text-gray-400">Dernière mise à jour</p>
@@ -702,7 +722,7 @@ const Dashboard = () => {
                       </p>
                       <p className="text-sm text-gray-500">
                         {item.requested_by?.name || "Demandeur inconnu"} ·{" "}
-                        {item.requested_by?.department || "Département N/A"}
+                        {item.requested_by?.department || "Service non renseigné"}
                       </p>
                       <p className="text-xs text-gray-400">
                         Montant ~ {formatCurrency(item.amount || 0)} · En attente
@@ -780,6 +800,49 @@ const Dashboard = () => {
                 </p>
               </div>
             ))}
+          </div>
+        </SectionCard>
+      )}
+
+      {departmentStats.length > 0 && (
+        <SectionCard
+          title="Répartition par département"
+          description="Les 5 services les plus actifs sur la période"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {departmentStats.map((dept) => {
+              const deptName = dept.department || "Service non défini";
+              const isUserDept =
+                user?.department &&
+                deptName.toLowerCase() === user.department.toLowerCase();
+              return (
+                <div
+                  key={deptName}
+                  className={`rounded-2xl border p-4 shadow-sm bg-white/90 ${
+                    isUserDept
+                      ? "border-red-200 ring-1 ring-red-100"
+                      : "border-gray-100"
+                  }`}
+                >
+                  <p className="text-sm font-semibold text-gray-900">
+                    {deptName}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {isUserDept
+                      ? "Votre service"
+                      : "Service suivi par la plateforme"}
+                  </p>
+                  <div className="mt-3 flex items-end justify-between">
+                    <span className="text-3xl font-bold text-gray-900">
+                      {dept.requests_count}
+                    </span>
+                    <span className="text-xs text-gray-400 uppercase">
+                      demandes
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </SectionCard>
       )}
