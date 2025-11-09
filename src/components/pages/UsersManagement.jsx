@@ -285,19 +285,37 @@ const AddUserForm = ({ onClose, onUserAdded, currentUser }) => {
               </label>
               <div className="relative">
                 <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <select
-                  name="department"
-                  value={formData.department}
-                  onChange={handleChange}
-                  className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Sélectionner un département</option>
-                  {departments.map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept}
-                    </option>
-                  ))}
-                </select>
+                <div className="pl-10 space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    {departments.map((dept) => (
+                      <button
+                        type="button"
+                        key={dept}
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            department: dept,
+                          }))
+                        }
+                        className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
+                          formData.department === dept
+                            ? "bg-red-50 border-red-200 text-red-600"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
+                        {dept}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    name="department"
+                    value={formData.department}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Service personnalisé"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -521,19 +539,37 @@ const EditUserModal = ({ user, onClose, onUserUpdated, currentUser }) => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Département
                 </label>
-                <select
-                  name="department"
-                  value={formData.department}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
-                >
-                  <option value="">Sélectionner un département</option>
-                  {departments.map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept}
-                    </option>
-                  ))}
-                </select>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    {departments.map((dept) => (
+                      <button
+                        type="button"
+                        key={dept}
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            department: dept,
+                          }))
+                        }
+                        className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
+                          formData.department === dept
+                            ? "bg-red-50 border-red-200 text-red-600"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
+                        {dept}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    name="department"
+                    value={formData.department}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
+                    placeholder="Service personnalisé"
+                  />
+                </div>
               </div>
             </div>
 
