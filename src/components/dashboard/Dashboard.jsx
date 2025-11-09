@@ -13,6 +13,9 @@ import {
   ArrowUpRight,
   ArrowRight,
   Copy,
+  Users,
+  Activity as ActivityIcon,
+  Timer,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -46,68 +49,124 @@ const SectionCard = ({ title, description, children, action }) => (
   </div>
 );
 
-const AlertItem = ({ alert, badge }) => {
+const QueueItem = ({ item }) => {
   const handleCopy = () => {
-    if (!alert.item_description) return;
-    navigator.clipboard?.writeText(alert.item_description);
+    if (!item.item_description) return;
+    navigator.clipboard?.writeText(item.item_description);
     toast.success("Description copiée dans le presse-papiers");
   };
 
+  const actors = [
+    { label: "MG", data: item.actors?.mg },
+    { label: "Comptabilité", data: item.actors?.accounting },
+    { label: "Direction", data: item.actors?.director },
+  ];
+
   return (
-    <div className="py-4 border-b last:border-b-0 space-y-2">
+    <div className="py-4 border-b last:border-b-0 space-y-3">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="font-medium text-gray-900">{alert.item_description ? "Description" : "Demande"}</p>
+          <p className="font-semibold text-gray-900 break-words">
+            {item.item_description}
+          </p>
           <p className="text-xs text-gray-500">
-            {alert.user_name || "Utilisateur"} · {alert.urgency_display}
+            {item.requested_by?.name || "Demandeur inconnu"} ·{" "}
+            {item.requested_by?.department || "Département non renseigné"}
           </p>
           <p className="text-xs text-gray-400">
-            En attente depuis {alert.daysWaiting} jour
-            {alert.daysWaiting > 1 ? "s" : ""}
+            En attente depuis {item.waiting_days} jour
+            {item.waiting_days > 1 ? "s" : ""} · Urgence{" "}
+            {item.urgency_display}
           </p>
         </div>
-        <span
-          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${badge.class}`}
-        >
-          {badge.text}
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+          {item.current_step}
         </span>
       </div>
 
-      {alert.item_description && (
-        <div className="rounded-xl bg-gray-50 border border-gray-100 px-3 py-2 text-sm text-gray-700 break-words">
-          <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-            <span>Contenu de la demande</span>
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium"
-            >
-              <Copy className="h-3 w-3" />
-              Copier
-            </button>
-          </div>
-          <pre className="whitespace-pre-wrap break-words text-gray-800 text-sm font-medium">
-            {alert.item_description}
-          </pre>
+      <div className="rounded-xl bg-gray-50 border border-gray-100 px-3 py-2 text-sm text-gray-700 break-words">
+        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+          <span>Contenu de la demande</span>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium"
+          >
+            <Copy className="h-3 w-3" />
+            Copier
+          </button>
         </div>
-      )}
+        <pre className="whitespace-pre-wrap break-words text-gray-800 text-sm font-medium">
+          {item.item_description}
+        </pre>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-gray-500">
+        {actors.map(
+          ({ label, data }) =>
+            (data?.name || label === "MG") && (
+              <div
+                key={label}
+                className="rounded-lg border border-gray-100 bg-white px-3 py-2"
+              >
+                <p className="font-semibold text-gray-900">{label}</p>
+                {data ? (
+                  <>
+                    <p>{data.name}</p>
+                    {data.performed_at && (
+                      <p className="text-[11px] text-gray-400">
+                        {new Date(data.performed_at).toLocaleDateString(
+                          "fr-FR"
+                        )}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-gray-400">En attente</p>
+                )}
+              </div>
+            )
+        )}
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
-        <div className="text-gray-500">
-          Dernière mise à jour :{" "}
-          {new Date(alert.created_at).toLocaleDateString("fr-FR")}
+        <div>
+          Dernière action :{" "}
+          {item.last_action
+            ? `${item.last_action.action_display} par ${
+                item.last_action.performed_by?.name || "N/A"
+              }`
+            : "Aucune"}
         </div>
         <Link
-          to={`/requests/${alert.id}`}
+          to={`/requests/${item.id}`}
           className="text-blue-600 hover:text-blue-800 font-medium inline-flex items-center gap-1"
         >
-          Voir la demande
+          Ouvrir la demande
           <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
     </div>
   );
 };
+
+const RecentActionItem = ({ action }) => (
+  <div className="py-3 border-b last:border-b-0">
+    <div className="flex items-center justify-between text-sm">
+      <p className="font-medium text-gray-900 inline-flex items-center gap-2">
+        <ActivityIcon className="h-4 w-4 text-blue-500" />
+        {action.action_display}
+      </p>
+      <span className="text-xs text-gray-400">
+        {new Date(action.performed_at).toLocaleString("fr-FR")}
+      </span>
+    </div>
+    <p className="text-sm text-gray-600">{action.request_description}</p>
+    <p className="text-xs text-gray-400">
+      Statut actuel : {action.request_status_display}
+    </p>
+  </div>
+);
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -128,6 +187,14 @@ const Dashboard = () => {
     fetchDashboardData();
   }, []);
 
+  const overview = dashboardData?.overview || {};
+  const queueItems = dashboardData?.queue || [];
+  const recentActions = dashboardData?.recent_actions || [];
+  const teamActivity = dashboardData?.team_activity || {};
+  const performance = dashboardData?.performance || {};
+  const budgetBlock = dashboardData?.budget || {};
+  const queueInsights = dashboardData?.queue_insights || {};
+
   const formatCurrency = (value = 0) =>
     new Intl.NumberFormat("fr-FR", {
       style: "currency",
@@ -141,35 +208,28 @@ const Dashboard = () => {
       employee: [
         {
           name: "Mes demandes",
-          value: dashboardData?.total_requests || 0,
+          value: overview?.owned_requests ?? 0,
           icon: FileText,
           color: "bg-blue-500",
-          description: "Total de mes demandes",
+          description: "Soumises par moi",
         },
         {
-          name: "En attente",
-          value: dashboardData?.pending_requests || 0,
+          name: "En attente de réponse",
+          value: overview?.awaiting_feedback ?? 0,
           icon: Clock,
           color: "bg-yellow-500",
-          description: "En attente de validation MG",
-        },
-        {
-          name: "En cours",
-          value: dashboardData?.in_progress_requests || 0,
-          icon: RefreshCw,
-          color: "bg-orange-500",
-          description: "En cours de traitement",
+          description: "Toujours en cours",
         },
         {
           name: "Approuvées",
-          value: dashboardData?.approved_requests || 0,
+          value: overview?.approved_owned ?? 0,
           icon: CheckCircle,
           color: "bg-green-500",
-          description: "Demandes validées",
+          description: "Validées par la direction",
         },
         {
           name: "Refusées",
-          value: dashboardData?.rejected_requests || 0,
+          value: overview?.rejected_owned ?? 0,
           icon: XCircle,
           color: "bg-red-500",
           description: "Demandes rejetées",
@@ -177,93 +237,127 @@ const Dashboard = () => {
       ],
       mg: [
         {
-          name: "Demandes reçues",
-          value: dashboardData?.mes_demandes || 0,
+          name: "Demandes visibles",
+          value: overview?.total_visible ?? dashboardData?.total_requests ?? 0,
           icon: FileText,
           color: "bg-sky-500",
-          description: "Arrivées à mon niveau",
+          description: "Dans mon périmètre",
         },
         {
           name: "À traiter",
-          value: dashboardData?.en_cours || 0,
+          value: overview?.awaiting_my_action ?? queueInsights.awaiting ?? 0,
           icon: RefreshCw,
           color: "bg-orange-500",
           description: "En attente d'action",
         },
         {
-          name: "Validées",
-          value: dashboardData?.acceptees || 0,
+          name: "Validées par moi",
+          value: overview?.validated_by_me ?? 0,
           icon: CheckCircle,
           color: "bg-emerald-500",
-          description: "Validées par moi",
+          description: "Décisions prises",
         },
         {
-          name: "Refusées",
-          value: dashboardData?.refusees || 0,
+          name: "Refusées par moi",
+          value: overview?.rejected_by_me ?? 0,
           icon: XCircle,
           color: "bg-rose-500",
-          description: "Refusées par moi",
+          description: "Décisions négatives",
+        },
+      ],
+      accounting: [
+        {
+          name: "Dossier suivis",
+          value: overview?.total_visible ?? 0,
+          icon: FileText,
+          color: "bg-indigo-500",
+          description: "Demandes reçues",
+        },
+        {
+          name: "À vérifier",
+          value: overview?.awaiting_my_action ?? queueInsights.awaiting ?? 0,
+          icon: RefreshCw,
+          color: "bg-orange-500",
+          description: "Budget à confirmer",
+        },
+        {
+          name: "Validations",
+          value: overview?.validated_by_me ?? 0,
+          icon: CheckCircle,
+          color: "bg-green-500",
+          description: "Conformité confirmée",
+        },
+        {
+          name: "Rejets",
+          value: overview?.rejected_by_me ?? 0,
+          icon: XCircle,
+          color: "bg-rose-500",
+          description: "Demandes rejetées",
+        },
+      ],
+      director: [
+        {
+          name: "Dossiers globaux",
+          value: overview?.total_visible ?? dashboardData?.total_requests ?? 0,
+          icon: FileText,
+          color: "bg-violet-500",
+          description: "Vue consolidée",
+        },
+        {
+          name: "À signer",
+          value: overview?.awaiting_my_action ?? queueInsights.awaiting ?? 0,
+          icon: RefreshCw,
+          color: "bg-orange-500",
+          description: "En attente de décision",
+        },
+        {
+          name: "Décisions prises",
+          value: overview?.validated_by_me ?? 0,
+          icon: CheckCircle,
+          color: "bg-emerald-500",
+          description: "Approbations finales",
+        },
+        {
+          name: "Refus prononcés",
+          value: overview?.rejected_by_me ?? 0,
+          icon: XCircle,
+          color: "bg-rose-500",
+          description: "Dossiers refusés",
         },
       ],
     };
-    return (
-      base[user?.role] ||
-      base.employee.slice(0, 4) ||
-      [
-        {
-          name: "Demandes",
-          value: dashboardData?.total_requests || 0,
-          icon: FileText,
-          color: "bg-blue-500",
-          description: "Toutes les demandes",
-        },
-      ]
-    );
-  }, [dashboardData, user?.role]);
 
-  const allRequests = dashboardData?.all_requests || [];
-  const criticalAlerts = useMemo(
-    () =>
-      allRequests.filter(
-        (req) =>
-          req.urgency === "critical" && req.status !== "director_approved"
-      ),
-    [allRequests]
-  );
-  const overdueAlerts = useMemo(() => {
-    const now = Date.now();
-    return allRequests.filter((req) => {
-      if (req.status === "director_approved") return false;
-      const createdAt = new Date(req.created_at).getTime();
-      const diffDays = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
-      return diffDays >= 7;
-    });
-  }, [allRequests]);
+    const fallback = [
+      {
+        name: "Demandes",
+        value: overview?.total_visible ?? dashboardData?.total_requests ?? 0,
+        icon: FileText,
+        color: "bg-blue-500",
+        description: "Toutes les demandes",
+      },
+    ];
 
-  const highlightedAlerts = useMemo(() => {
-    const now = Date.now();
-    const map = new Map();
-    [...criticalAlerts, ...overdueAlerts].forEach((req) => {
-      if (map.has(req.id)) return;
-      const createdAt = new Date(req.created_at).getTime();
-      const diffDays = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
-      map.set(req.id, { ...req, daysWaiting: diffDays });
-    });
-    return Array.from(map.values())
-      .sort((a, b) => b.daysWaiting - a.daysWaiting)
-      .slice(0, 4);
-  }, [criticalAlerts, overdueAlerts]);
+    return base[user?.role] || fallback;
+  }, [dashboardData, overview, queueInsights.awaiting, user?.role]);
 
   const currentBudget =
-    dashboardData?.current_period_stats?.total_amount || 0;
+    budgetBlock.current_total ??
+    dashboardData?.current_period_stats?.total_amount ??
+    0;
   const previousBudget =
-    dashboardData?.previous_period_stats?.total_amount || 0;
-  const budgetVariation = previousBudget
+    budgetBlock.previous_total ??
+    dashboardData?.previous_period_stats?.total_amount ??
+    0;
+  const fallbackVariation = previousBudget
     ? ((currentBudget - previousBudget) / previousBudget) * 100
     : currentBudget > 0
     ? 100
     : 0;
-  const budgetTrend = budgetVariation >= 0 ? "up" : "down";
+  const budgetTrendDirection =
+    budgetBlock.trend?.direction || (fallbackVariation >= 0 ? "up" : "down");
+  const budgetTrendValue =
+    budgetBlock.trend?.value ??
+    Math.abs(fallbackVariation).toFixed(1);
 
   const quickActions = useMemo(() => {
     const actionsByRole = {
@@ -355,50 +449,50 @@ const Dashboard = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <SectionCard
-          title="Alertes critiques"
-          description={`${criticalAlerts.length} urgences · ${overdueAlerts.length} en retard`}
+          title={
+            user?.role === "employee"
+              ? "Suivi de mes demandes"
+              : "À traiter en priorité"
+          }
+          description={
+            queueItems.length > 0
+              ? `${queueItems.length} demande${
+                  queueItems.length > 1 ? "s" : ""
+                } dans la file`
+              : "Aucune demande en attente"
+          }
           action={
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-600">
-              {criticalAlerts.length + overdueAlerts.length} en cours
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600">
+              {queueInsights.oldest_waiting_days || 0} j max
             </span>
           }
         >
-          {highlightedAlerts.length === 0 ? (
+          {queueItems.length === 0 ? (
             <p className="text-sm text-gray-500">
-              Aucune alerte active pour le moment. Vous êtes à jour !
+              Tout est traité pour le moment. Vous pouvez suivre les nouvelles
+              demandes depuis la liste générale.
             </p>
           ) : (
-            highlightedAlerts.map((alert) => (
-              <AlertItem
-                key={alert.id}
-                alert={alert}
-                badge={{
-                  className:
-                    alert.status === "pending"
-                      ? "bg-yellow-100 text-yellow-700"
-                      : "bg-gray-100 text-gray-600",
-                  text: alert.status_display || alert.status,
-                }}
-              />
-            ))
+            queueItems.map((item) => <QueueItem key={item.id} item={item} />)
           )}
         </SectionCard>
-
         <SectionCard
           title="Budget approuvé"
           description="Montant global validé sur la période courante"
           action={
             <span
               className={`inline-flex items-center text-sm font-semibold ${
-                budgetTrend === "up" ? "text-emerald-600" : "text-rose-600"
+                budgetTrendDirection === "up"
+                  ? "text-emerald-600"
+                  : "text-rose-600"
               }`}
             >
-              {budgetTrend === "up" ? (
+              {budgetTrendDirection === "up" ? (
                 <TrendingUp className="h-4 w-4 mr-1" />
               ) : (
                 <TrendingDown className="h-4 w-4 mr-1" />
               )}
-              {Math.abs(budgetVariation).toFixed(1)}%
+              {parseFloat(budgetTrendValue).toFixed(1)}%
             </span>
           }
         >
@@ -437,6 +531,97 @@ const Dashboard = () => {
           </div>
         </SectionCard>
       </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <SectionCard
+          title="Mes dernières actions"
+          description="Historique récent (6 dernières opérations)"
+          action={
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+              {recentActions.length} actions
+            </span>
+          }
+        >
+          {recentActions.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              Aucune action récente. Les validations et rejets apparaîtront ici.
+            </p>
+          ) : (
+            recentActions.map((action) => (
+              <RecentActionItem key={action.id} action={action} />
+            ))
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Performance & file d'attente"
+          description="Vue synthétique de votre activité"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="rounded-2xl bg-gray-50 p-4">
+              <p className="text-xs text-gray-500 uppercase tracking-wide">
+                Demandes en file
+              </p>
+              <p className="text-xl font-semibold text-gray-900">
+                {performance.queue_size || 0}
+              </p>
+              <p className="text-xs text-gray-400 flex items-center gap-1">
+                <Timer className="h-3 w-3" />
+                +{performance.queue_oldest_waiting_days || 0} j max
+              </p>
+            </div>
+            <div className="rounded-2xl bg-gray-50 p-4">
+              <p className="text-xs text-gray-500 uppercase tracking-wide">
+                Temps moyen
+              </p>
+              <p className="text-xl font-semibold text-gray-900">
+                {performance.avg_handle_time_days || 0} j
+              </p>
+              <p className="text-xs text-gray-400">Entre réception et action</p>
+            </div>
+            <div className="rounded-2xl bg-gray-50 p-4">
+              <p className="text-xs text-gray-500 uppercase tracking-wide">
+                Actions 30 derniers jours
+              </p>
+              <p className="text-xl font-semibold text-gray-900">
+                {performance.actions_last_30_days || 0}
+              </p>
+              <p className="text-xs text-gray-400">Validations ou rejets</p>
+            </div>
+          </div>
+        </SectionCard>
+      </div>
+
+      <SectionCard
+        title="Activité des équipes"
+        description="Vue consolidée par rôle"
+        action={
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+            {Object.keys(teamActivity || {}).length} équipes suivies
+          </span>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Object.entries(teamActivity || {}).map(([roleKey, info]) => (
+            <div
+              key={roleKey}
+              className="rounded-2xl border border-gray-100 p-4 bg-white shadow-sm flex flex-col gap-2"
+            >
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-blue-600" />
+                <p className="font-semibold text-gray-900">{info.label}</p>
+              </div>
+              <p className="text-sm text-gray-600">
+                {info.awaiting} en attente · {info.validated_today} traitées
+                aujourd'hui
+              </p>
+              <p className="text-xs text-gray-400">
+                {info.members} membre{info.members > 1 ? "s" : ""} actifs
+              </p>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
 
       <SectionCard
         title="Actions rapides"
