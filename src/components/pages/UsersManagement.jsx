@@ -28,11 +28,43 @@ import {
   RefreshCw,
 } from "lucide-react";
 
+const ROLE_OPTIONS = [
+  { value: "employee", label: "Personnel" },
+  { value: "mg", label: "Responsable Moyens Généraux" },
+  { value: "accounting", label: "Comptabilité" },
+  { value: "director", label: "Direction" },
+];
+
+const DEPARTMENT_OPTIONS = [
+  "Service Développement",
+  "Service Communication",
+  "Service Pédagogique",
+  "Service Moyens Généraux",
+  "Service Insertion",
+  "Administration",
+  "Comptabilité",
+  "Ressources Humaines",
+  "IT/Informatique",
+  "Commercial",
+  "Production",
+  "Logistique",
+  "Marketing",
+  "Autre",
+];
+
+const parseDepartments = (value = "") =>
+  value
+    .split("|")
+    .map((dept) => dept.trim())
+    .filter(Boolean);
+
 // Composant AddUserForm intégré
 const AddUserForm = ({ onClose, onUserAdded, currentUser }) => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState("");
+  const [selectedDepartments, setSelectedDepartments] = useState([]);
+  const [customDepartment, setCustomDepartment] = useState("");
 
   const [formData, setFormData] = useState({
     username: "",
@@ -44,27 +76,45 @@ const AddUserForm = ({ onClose, onUserAdded, currentUser }) => {
     phone: "",
   });
 
-  const roles = [
-    { value: "employee", label: "Personnel" },
-    { value: "mg", label: "Moyens Généraux" },
-    { value: "accounting", label: "Comptabilité" },
-    { value: "director", label: "Direction" },
-  ];
+  const syncDepartmentField = (departments) => {
+    setFormData((prev) => ({
+      ...prev,
+      department: departments.join(" | "),
+    }));
+  };
 
-  const departments = [
-    "Service Développement",
-    "Service Communication",
-    "Service Pédagogique",
-    "Administration",
-    "Comptabilité",
-    "Ressources Humaines",
-    "IT/Informatique",
-    "Commercial",
-    "Production",
-    "Logistique",
-    "Marketing",
-    "Autre",
-  ];
+  const toggleDepartment = (dept) => {
+    setSelectedDepartments((prev) => {
+      const exists = prev.includes(dept);
+      const updated = exists ? prev.filter((d) => d !== dept) : [...prev, dept];
+      syncDepartmentField(updated);
+      return updated;
+    });
+    if (error) setError("");
+    if (success) setSuccess(null);
+  };
+
+  const handleDepartmentRemove = (dept) => {
+    setSelectedDepartments((prev) => {
+      const updated = prev.filter((d) => d !== dept);
+      syncDepartmentField(updated);
+      return updated;
+    });
+  };
+
+  const handleCustomDepartmentAdd = () => {
+    const value = customDepartment.trim();
+    if (!value) return;
+    setSelectedDepartments((prev) => {
+      if (prev.includes(value)) return prev;
+      const updated = [...prev, value];
+      syncDepartmentField(updated);
+      return updated;
+    });
+    setCustomDepartment("");
+    if (error) setError("");
+    if (success) setSuccess(null);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -104,6 +154,9 @@ const AddUserForm = ({ onClose, onUserAdded, currentUser }) => {
       if (onUserAdded) {
         onUserAdded(response.data);
       }
+
+      setSelectedDepartments([]);
+      setCustomDepartment("");
 
       // Fermer le modal après 3 secondes
       setTimeout(() => {
@@ -270,7 +323,7 @@ const AddUserForm = ({ onClose, onUserAdded, currentUser }) => {
                   onChange={handleChange}
                   className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  {roles.map((role) => (
+                  {ROLE_OPTIONS.map((role) => (
                     <option key={role.value} value={role.value}>
                       {role.label}
                     </option>
@@ -287,18 +340,13 @@ const AddUserForm = ({ onClose, onUserAdded, currentUser }) => {
                 <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <div className="pl-10 space-y-2">
                   <div className="flex flex-wrap gap-2">
-                    {departments.map((dept) => (
+                    {DEPARTMENT_OPTIONS.map((dept) => (
                       <button
                         type="button"
                         key={dept}
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            department: dept,
-                          }))
-                        }
+                        onClick={() => toggleDepartment(dept)}
                         className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
-                          formData.department === dept
+                          selectedDepartments.includes(dept)
                             ? "bg-red-50 border-red-200 text-red-600"
                             : "border-gray-200 text-gray-600 hover:border-gray-300"
                         }`}
@@ -307,14 +355,47 @@ const AddUserForm = ({ onClose, onUserAdded, currentUser }) => {
                       </button>
                     ))}
                   </div>
-                  <input
-                    type="text"
-                    name="department"
-                    value={formData.department}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Service personnalisé"
-                  />
+                  {selectedDepartments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {selectedDepartments.map((dept) => (
+                        <span
+                          key={dept}
+                          className="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-3 py-1 text-xs font-medium"
+                        >
+                          {dept}
+                          <button
+                            type="button"
+                            className="ml-2 text-blue-500 hover:text-blue-700"
+                            onClick={() => handleDepartmentRemove(dept)}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={customDepartment}
+                      onChange={(e) => setCustomDepartment(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleCustomDepartmentAdd();
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Ajouter un service personnalisé"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCustomDepartmentAdd}
+                      className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                    >
+                      Ajouter
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -385,28 +466,56 @@ const EditUserModal = ({ user, onClose, onUserUpdated, currentUser }) => {
     phone: user?.phone || "",
     is_active: user?.is_active !== undefined ? user.is_active : true,
   });
+  const [selectedDepartments, setSelectedDepartments] = useState(
+    parseDepartments(user?.department)
+  );
+  const [customDepartment, setCustomDepartment] = useState("");
 
-  const roles = [
-    { value: "employee", label: "Personnel" },
-    { value: "mg", label: "Moyens Généraux" },
-    { value: "accounting", label: "Comptabilité" },
-    { value: "director", label: "Direction" },
-  ];
+  useEffect(() => {
+    setFormData({
+      role: user?.role || "employee",
+      department: user?.department || "",
+      phone: user?.phone || "",
+      is_active: user?.is_active !== undefined ? user.is_active : true,
+    });
+    setSelectedDepartments(parseDepartments(user?.department));
+  }, [user]);
 
-  const departments = [
-    "Service Développement",
-    "Service Communication",
-    "Service Pédagogique",
-    "Administration",
-    "Comptabilité",
-    "Ressources Humaines",
-    "IT/Informatique",
-    "Commercial",
-    "Production",
-    "Logistique",
-    "Marketing",
-    "Autre",
-  ];
+  const syncDepartmentField = (departments) => {
+    setFormData((prev) => ({
+      ...prev,
+      department: departments.join(" | "),
+    }));
+  };
+
+  const toggleDepartment = (dept) => {
+    setSelectedDepartments((prev) => {
+      const exists = prev.includes(dept);
+      const updated = exists ? prev.filter((d) => d !== dept) : [...prev, dept];
+      syncDepartmentField(updated);
+      return updated;
+    });
+  };
+
+  const handleDepartmentRemove = (dept) => {
+    setSelectedDepartments((prev) => {
+      const updated = prev.filter((d) => d !== dept);
+      syncDepartmentField(updated);
+      return updated;
+    });
+  };
+
+  const handleCustomDepartmentAdd = () => {
+    const value = customDepartment.trim();
+    if (!value) return;
+    setSelectedDepartments((prev) => {
+      if (prev.includes(value)) return prev;
+      const updated = [...prev, value];
+      syncDepartmentField(updated);
+      return updated;
+    });
+    setCustomDepartment("");
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -527,7 +636,7 @@ const EditUserModal = ({ user, onClose, onUserUpdated, currentUser }) => {
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
                 >
-                  {roles.map((role) => (
+                  {ROLE_OPTIONS.map((role) => (
                     <option key={role.value} value={role.value}>
                       {role.label}
                     </option>
@@ -541,18 +650,13 @@ const EditUserModal = ({ user, onClose, onUserUpdated, currentUser }) => {
                 </label>
                 <div className="space-y-2">
                   <div className="flex flex-wrap gap-2">
-                    {departments.map((dept) => (
+                    {DEPARTMENT_OPTIONS.map((dept) => (
                       <button
                         type="button"
                         key={dept}
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            department: dept,
-                          }))
-                        }
+                        onClick={() => toggleDepartment(dept)}
                         className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
-                          formData.department === dept
+                          selectedDepartments.includes(dept)
                             ? "bg-red-50 border-red-200 text-red-600"
                             : "border-gray-200 text-gray-600 hover:border-gray-300"
                         }`}
@@ -561,14 +665,47 @@ const EditUserModal = ({ user, onClose, onUserUpdated, currentUser }) => {
                       </button>
                     ))}
                   </div>
-                  <input
-                    type="text"
-                    name="department"
-                    value={formData.department}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
-                    placeholder="Service personnalisé"
-                  />
+                  {selectedDepartments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {selectedDepartments.map((dept) => (
+                        <span
+                          key={dept}
+                          className="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-3 py-1 text-xs font-medium"
+                        >
+                          {dept}
+                          <button
+                            type="button"
+                            className="ml-2 text-blue-500 hover:text-blue-700"
+                            onClick={() => handleDepartmentRemove(dept)}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={customDepartment}
+                      onChange={(e) => setCustomDepartment(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleCustomDepartmentAdd();
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
+                      placeholder="Ajouter un service personnalisé"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCustomDepartmentAdd}
+                      className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                    >
+                      Ajouter
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -747,7 +884,7 @@ const UsersManagement = () => {
       },
       mg: {
         class: "bg-blue-100 text-blue-800",
-        text: "Moyens Généraux",
+        text: "Responsable Moyens Généraux",
         dotClass: "bg-blue-400",
       },
       accounting: {
@@ -1072,7 +1209,7 @@ const UsersManagement = () => {
               >
                 <option value="all">Tous les rôles</option>
                 <option value="employee">Personnel</option>
-                <option value="mg">Moyens Généraux</option>
+                <option value="mg">Responsable Moyens Généraux</option>
                 <option value="accounting">Comptabilité</option>
                 <option value="director">Direction</option>
               </select>

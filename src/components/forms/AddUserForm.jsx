@@ -18,6 +18,7 @@ const AddUserForm = ({ onClose, onUserAdded }) => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState("");
+  const [customDepartment, setCustomDepartment] = useState("");
 
   const [formData, setFormData] = useState({
     username: "",
@@ -29,17 +30,21 @@ const AddUserForm = ({ onClose, onUserAdded }) => {
     phone: "",
   });
 
+  const [selectedDepartments, setSelectedDepartments] = useState([]);
+
   const roles = [
     { value: "employee", label: "Personnel" },
-    { value: "mg", label: "Moyen Général" },
+    { value: "mg", label: "Responsable Moyens Généraux" },
     { value: "accounting", label: "Comptabilité" },
     { value: "director", label: "Directeur" },
   ];
 
-  const departments = [
+  const departmentOptions = [
     "Service Développement",
     "Service Communication",
     "Service Pédagogique",
+    "Service Moyens Généraux",
+    "Service Insertion",
     "Administration",
     "Comptabilité",
     "Ressources Humaines",
@@ -50,6 +55,46 @@ const AddUserForm = ({ onClose, onUserAdded }) => {
     "Marketing",
     "Autre",
   ];
+
+  const syncDepartmentField = (departments) => {
+    setFormData((prev) => ({
+      ...prev,
+      department: departments.join(" | "),
+    }));
+  };
+
+  const toggleDepartment = (dept) => {
+    setSelectedDepartments((prev) => {
+      const exists = prev.includes(dept);
+      const updated = exists ? prev.filter((d) => d !== dept) : [...prev, dept];
+      syncDepartmentField(updated);
+      return updated;
+    });
+    if (error) setError("");
+    if (success) setSuccess(null);
+  };
+
+  const handleDepartmentRemove = (dept) => {
+    setSelectedDepartments((prev) => {
+      const updated = prev.filter((d) => d !== dept);
+      syncDepartmentField(updated);
+      return updated;
+    });
+  };
+
+  const handleCustomDepartmentAdd = () => {
+    const value = customDepartment.trim();
+    if (!value) return;
+    setSelectedDepartments((prev) => {
+      if (prev.includes(value)) return prev;
+      const updated = [...prev, value];
+      syncDepartmentField(updated);
+      return updated;
+    });
+    setCustomDepartment("");
+    if (error) setError("");
+    if (success) setSuccess(null);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -92,7 +137,7 @@ const AddUserForm = ({ onClose, onUserAdded }) => {
       }
 
       // Réinitialiser le formulaire
-      setFormData({
+      setFormData((prev) => ({
         username: "",
         email: "",
         first_name: "",
@@ -100,7 +145,9 @@ const AddUserForm = ({ onClose, onUserAdded }) => {
         role: "employee",
         department: "",
         phone: "",
-      });
+      }));
+      setSelectedDepartments([]);
+      setCustomDepartment("");
     } catch (err) {
       console.error("Erreur lors de la création:", err);
 
@@ -307,18 +354,13 @@ const AddUserForm = ({ onClose, onUserAdded }) => {
                 <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <div className="pl-10 space-y-2">
                   <div className="flex flex-wrap gap-2">
-                    {departments.map((dept) => (
+                    {departmentOptions.map((dept) => (
                       <button
                         type="button"
                         key={dept}
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            department: dept,
-                          }))
-                        }
+                        onClick={() => toggleDepartment(dept)}
                         className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
-                          formData.department === dept
+                          selectedDepartments.includes(dept)
                             ? "bg-red-50 border-red-200 text-red-600"
                             : "border-gray-200 text-gray-600 hover:border-gray-300"
                         }`}
@@ -327,14 +369,47 @@ const AddUserForm = ({ onClose, onUserAdded }) => {
                       </button>
                     ))}
                   </div>
-                  <input
-                    type="text"
-                    name="department"
-                    value={formData.department}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Service personnalisé (ex: Service Innovation)"
-                  />
+                  {selectedDepartments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {selectedDepartments.map((dept) => (
+                        <span
+                          key={dept}
+                          className="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-3 py-1 text-xs font-medium"
+                        >
+                          {dept}
+                          <button
+                            type="button"
+                            className="ml-2 text-blue-500 hover:text-blue-700"
+                            onClick={() => handleDepartmentRemove(dept)}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={customDepartment}
+                      onChange={(e) => setCustomDepartment(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleCustomDepartmentAdd();
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Ajouter un service personnalisé"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCustomDepartmentAdd}
+                      className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                    >
+                      Ajouter
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
