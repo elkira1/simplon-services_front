@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { requestsAPI, attachmentsAPI } from "../../services/api";
+import { requestsAPI, attachmentsAPI, budgetAPI } from "../../services/api";
 import {
   ArrowLeft,
   CheckCircle,
@@ -9,10 +9,18 @@ import {
   Clock,
   FileText,
   Edit,
+  Loader2,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import RequestTimeline from "./RequestTimeline";
 import AttachmentsManager from "./AttachmentsManager";
+
+const formatCurrency = (value) =>
+  new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "XOF",
+    maximumFractionDigits: 0,
+  }).format(value || 0);
 
 const RequestDetail = () => {
   const { id } = useParams();
@@ -27,9 +35,12 @@ const RequestDetail = () => {
 
   // Nouveaux états pour la validation comptabilité
   const [showAccountingModal, setShowAccountingModal] = useState(false);
-  const [budgetAvailable, setBudgetAvailable] = useState(null);
   const [finalCost, setFinalCost] = useState("");
   const [accountingComment, setAccountingComment] = useState("");
+  const [budgetProjects, setBudgetProjects] = useState([]);
+  const [budgetLoading, setBudgetLoading] = useState(false);
+  const [selectedBudgetProject, setSelectedBudgetProject] = useState("");
+  const [selectedBudgetAmount, setSelectedBudgetAmount] = useState("");
 
   // NOUVEAU: État pour gérer les fichiers en attente lors de la validation MG
   const [pendingValidationFiles, setPendingValidationFiles] = useState([]);
@@ -48,6 +59,15 @@ const RequestDetail = () => {
       const response = await requestsAPI.getRequest(id);
       setRequest(response.data);
       setMgFinalCost("");
+      const defaultAmount =
+        response.data.budget_locked_amount ??
+        response.data.final_cost ??
+        response.data.estimated_cost ??
+        "";
+      setSelectedBudgetAmount(defaultAmount ? String(defaultAmount) : "");
+      if (response.data.budget_project?.id) {
+        setSelectedBudgetProject(String(response.data.budget_project.id));
+      }
     } catch (error) {
       toast.error("Erreur lors du chargement de la demande");
       // console.error("Request detail error:", error);
@@ -55,6 +75,33 @@ const RequestDetail = () => {
       setLoading(false);
     }
   };
+
+  const loadBudgetProjects = async () => {
+    setBudgetLoading(true);
+    try {
+      const { data } = await budgetAPI.list();
+      setBudgetProjects(data || []);
+    } catch (error) {
+      console.error(error);
+      toast.error("Impossible de charger les budgets disponibles.");
+    } finally {
+      setBudgetLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === "accounting") {
+      loadBudgetProjects();
+    }
+  }, [user?.role]);
+
+  const selectedBudgetProjectObj = useMemo(
+    () =>
+      budgetProjects.find(
+        (project) => String(project.id) === String(selectedBudgetProject)
+      ),
+    [budgetProjects, selectedBudgetProject]
+  );
 
   const canValidate = () => {
     if (!request) return false;
@@ -90,6 +137,14 @@ const RequestDetail = () => {
     }
 
     if (user?.role === "accounting" && action === "approve") {
+      if (!budgetProjects.length) {
+        loadBudgetProjects();
+      }
+      if (!selectedBudgetAmount) {
+        const defaultAmount =
+          (request?.final_cost ?? request?.estimated_cost ?? "") || "";
+        setSelectedBudgetAmount(defaultAmount ? String(defaultAmount) : "");
+      }
       setShowAccountingModal(true);
       return;
     }
@@ -204,17 +259,21 @@ const RequestDetail = () => {
   };
 
   const handleAccountingValidation = async () => {
-    if (budgetAvailable === null) {
-      toast.error("Veuillez indiquer si le budget est disponible");
+    if (!selectedBudgetProject) {
+      toast.error("Merci de sélectionner un projet budgétaire.");
       return;
     }
 
     try {
       const data = {
         action: "approve",
-        budget_available: budgetAvailable,
+        budget_project: selectedBudgetProject,
         comment: accountingComment.trim(),
       };
+
+      if (selectedBudgetAmount) {
+        data.budget_amount = parseFloat(selectedBudgetAmount);
+      }
 
       if (finalCost.trim()) {
         data.final_cost = parseFloat(finalCost);
@@ -223,13 +282,18 @@ const RequestDetail = () => {
       await requestsAPI.validateRequest(id, data);
       toast.success("Demande validée avec succès");
       setShowAccountingModal(false);
-      setBudgetAvailable(null);
       setFinalCost("");
       setAccountingComment("");
+      setSelectedBudgetProject("");
+      setSelectedBudgetAmount("");
       fetchRequestDetail();
     } catch (error) {
-      toast.error("Erreur lors de la validation");
-      // console.error("Validation error:", error);
+      console.error(error);
+      const message =
+        error.response?.data?.budget_project?.[0] ||
+        error.response?.data?.detail ||
+        "Erreur lors de la validation";
+      toast.error(message);
     }
   };
 
@@ -654,6 +718,39 @@ const RequestDetail = () => {
                 </button>
               </div>
             </div>
+
+            {request.budget_project && (
+              <div className="mt-6 border-t border-gray-100 pt-4">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                  Budget associé
+                </h4>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                      <p className="font-medium">
+                        {request.budget_project.code} •{" "}
+                        {request.budget_project.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Statut : {request.budget_project.status}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500">Montant réservé</p>
+                      <p className="font-semibold text-gray-900">
+                        {request.budget_locked_amount
+                          ? formatCurrency(request.budget_locked_amount)
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Disponible sur ce projet :{" "}
+                    {formatCurrency(request.budget_project.available_amount)}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -676,40 +773,59 @@ const RequestDetail = () => {
               </div>
 
               <div className="space-y-4">
-                {/* Budget disponible */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Le budget est-il disponible ? *
+                    Projet budgétaire *
                   </label>
-                  <div className="space-y-2">
-                    <label className="inline-flex items-center">
-                      <input
-                        type="radio"
-                        className="form-radio "
-                        name="budget_available"
-                        value="true"
-                        checked={budgetAvailable === true}
-                        onChange={() => setBudgetAvailable(true)}
-                      />
-                      <span className="ml-2 pr-4 text-sm text-gray-700">
-                        Oui
-                      </span>
-                    </label>
-                    <label className="inline-flex items-center">
-                      <input
-                        type="radio"
-                        className="form-radio"
-                        name="budget_available"
-                        value="false"
-                        checked={budgetAvailable === false}
-                        onChange={() => setBudgetAvailable(false)}
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Non</span>
-                    </label>
-                  </div>
+                  {budgetLoading ? (
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Chargement des budgets...
+                    </div>
+                  ) : budgetProjects.length === 0 ? (
+                    <div className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-300 rounded-lg p-3">
+                      Aucun budget actif. Créez un projet dans l’onglet Budget.
+                    </div>
+                  ) : (
+                    <>
+                      <select
+                        value={selectedBudgetProject}
+                        onChange={(e) => setSelectedBudgetProject(e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-red-500 focus:border-red-500"
+                      >
+                        <option value="">Sélectionner un projet</option>
+                        {budgetProjects.map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.code} • {project.name} (
+                            {formatCurrency(project.available_amount)} restants)
+                          </option>
+                        ))}
+                      </select>
+                      {selectedBudgetProjectObj && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Disponible :{" "}
+                          {formatCurrency(selectedBudgetProjectObj.available_amount)}
+                        </p>
+                      )}
+                    </>
+                  )}
                 </div>
 
-                {/* Coût final */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Montant imputé *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={selectedBudgetAmount}
+                    onChange={(e) => setSelectedBudgetAmount(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-red-500 focus:border-red-500"
+                    placeholder="Montant imputé sur ce budget"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Coût final (optionnel)

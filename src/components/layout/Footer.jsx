@@ -15,7 +15,7 @@ const Footer = () => {
             className="text-gray-700 hover:text-red-600 transition-colors"
             href="mailto:support@simplon.ci"
           >
-            support@simplon.ci
+            vsawadogo.ext@simplon.co
           </a>
         </p>
       </div>

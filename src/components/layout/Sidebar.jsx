@@ -9,6 +9,8 @@ import {
   BarChart3,
   Users,
   ClipboardList,
+  Megaphone,
+  Wallet,
 } from "lucide-react";
 
 const Sidebar = () => {
@@ -26,6 +28,30 @@ const Sidebar = () => {
       href: "/requests",
       icon: FileText,
       allowedRoles: ["employee", "mg", "accounting", "director"],
+    },
+    {
+      name: "Mise à disposition",
+      href: "/provisions",
+      icon: ClipboardList,
+      allowedRoles: ["employee", "mg", "accounting", "director"],
+    },
+    {
+      name: "Signalements",
+      href: "/reports",
+      icon: Megaphone,
+      allowedRoles: ["employee", "mg", "accounting", "director"],
+    },
+    {
+      name: "Budget",
+      href: "/budgets",
+      icon: Wallet,
+      allowedRoles: ["accounting"],
+    },
+    {
+      name: "Budget Stats",
+      href: "/budgets/statistics",
+      icon: BarChart3,
+      allowedRoles: ["accounting", "director"],
     },
     {
       name: "Nouvelle demande",
@@ -57,6 +83,8 @@ const Sidebar = () => {
     item.allowedRoles.includes(user?.role)
   );
 
+  const routesWithExactMatch = new Set(["/", "/requests", "/budgets"]);
+
   return (
     <div className="hidden md:flex md:flex-col min-h-screen w-52 flex-shrink-0">
       <div className="flex flex-col flex-grow pt-5 bg-white overflow-y-auto border-r border-gray-200 w-full">
@@ -68,7 +96,7 @@ const Sidebar = () => {
                 <NavLink
                   key={item.name}
                   to={item.href}
-                  end={item.href === "/requests"} // <-- seulement pour "Mes demandes"
+                  end={routesWithExactMatch.has(item.href)}
                   className={({ isActive }) =>
                     `group flex items-center px-3 py-3 text-sm font-medium rounded-md transition-colors w-full ${
                       isActive

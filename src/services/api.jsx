@@ -282,4 +282,27 @@ export const dashboardAPI = {
   getDashboard: () => api.get("/dashboard/"),
 };
 
+export const provisionAPI = {
+  list: (params = {}) => api.get("/provisions/", { params }),
+  create: (payload) => api.post("/provisions/", payload),
+  update: (id, payload) => api.patch(`/provisions/${id}/`, payload),
+};
+
+export const communityAPI = {
+  listReports: () => api.get("/incidents/"),
+  createReport: (payload) => api.post("/incidents/", payload),
+  updateReport: (id, payload) => api.patch(`/incidents/${id}/`, payload),
+  listComments: (reportId) => api.get(`/incidents/${reportId}/comments/`),
+  addComment: (reportId, payload) =>
+    api.post(`/incidents/${reportId}/comments/`, payload),
+};
+
+export const budgetAPI = {
+  list: () => api.get("/budgets/"),
+  create: (payload) => api.post("/budgets/", payload),
+  update: (id, payload) => api.patch(`/budgets/${id}/`, payload),
+  detail: (id) => api.get(`/budgets/${id}/`),
+  stats: () => api.get("/budgets/stats/"),
+};
+
 export default api;

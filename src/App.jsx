@@ -21,6 +21,10 @@ import { ToastContainer } from "react-toastify";
 
 import "./App.css";
 import UsersManagement from "./components/pages/UsersManagement";
+import ProvisionRequests from "./components/pages/ProvisionRequests";
+import CommunitySignals from "./components/pages/CommunitySignals";
+import BudgetProjects from "./components/pages/BudgetProjects";
+import BudgetStatistics from "./components/pages/BudgetStatistics";
 import PageTitleManager from "./components/common/PageTitleManager";
 import ForgotPassword from "./components/auth/ForgotPassword";
 import VerifyResetCode from "./components/auth/VerifyResetCode";
@@ -74,6 +78,25 @@ function App() {
                 element={
                   <PrivateRoute allowedRoles={["mg", "accounting", "director"]}>
                     <UsersManagement />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route path="provisions" element={<ProvisionRequests />} />
+              <Route path="reports" element={<CommunitySignals />} />
+              <Route
+                path="budgets"
+                element={
+                  <PrivateRoute allowedRoles={["accounting"]}>
+                    <BudgetProjects />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="budgets/statistics"
+                element={
+                  <PrivateRoute allowedRoles={["accounting", "director"]}>
+                    <BudgetStatistics />
                   </PrivateRoute>
                 }
               />
