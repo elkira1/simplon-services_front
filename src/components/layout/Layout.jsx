@@ -26,7 +26,7 @@ const Layout = () => {
         <Sidebar />
         {/* Cette div prend tout l'espace vertical restant et organise le contenu + footer */}
         <div className="flex flex-col flex-1 overflow-hidden">
-          <main className="flex-1 overflow-y-auto p-6">
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
             <div className="max-w-full">
               <Outlet />
             </div>
